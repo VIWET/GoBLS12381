@@ -43,7 +43,8 @@ func parsePath(path string) ([]uint32, error) {
 			return nil, err
 		}
 
-		indices[i-1] = uint32(index)
+		// index limited by 1 and 2**32
+		indices[i-1] = uint32(index) // #nosec
 	}
 
 	return indices, nil
