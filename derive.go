@@ -112,6 +112,44 @@ func deriveLamportSecretKeyFromIKM(ikm []byte, salt []byte) ([][]byte, error) {
 	return lamportKey, nil
 }
 
+// parent_SK_to_lamport_PK
+//
+//	Inputs
+//		parent_SK, the BLS Secret Key of the parent node
+//		index, the index of the desired child node, an integer 0 <= index < 2^32
+//	Outputs
+//		lamport_PK, the compressed lamport PK, a 32 octet string
+func deriveLamportPublicKeyFromParentKey(parentKey *big.Int, index uint32) ([]byte, error) {
+	salt := make([]byte, 4)
+	binary.BigEndian.PutUint32(salt, index)
+
+	lamport0, err := deriveLamport0(parentKey, salt)
+	if err != nil {
+		return nil, err
+	}
+
+	lamport1, err := deriveLamport1(parentKey, salt)
+	if err != nil {
+		return nil, err
+	}
+
+	composedLamportPublicKey := make([]byte, 2*KeyChunkCount*KeyChunkSize)
+	for i := 0; i < KeyChunkCount; i++ {
+		from := i * KeyChunkSize
+		to := (i + 1) * KeyChunkSize
+		element := sha256.Sum256(lamport0[i])
+		copy(composedLamportPublicKey[from:to], element[:])
+
+		from += KeyChunkCount * KeyChunkSize
+		to += KeyChunkCount * KeyChunkSize
+		element = sha256.Sum256(lamport1[i])
+		copy(composedLamportPublicKey[from:to], element[:])
+	}
+
+	compressedLamportPublicKey := sha256.Sum256(composedLamportPublicKey)
+	return compressedLamportPublicKey[:], nil
+}
+
 // deriveLamport0 calls IKM_to_lamport_SK with parentKey as IKM
 func deriveLamport0(parentKey *big.Int, salt []byte) ([][]byte, error) {
 	ikm := parentKey.Bytes()
