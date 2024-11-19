@@ -31,7 +31,7 @@ func Test_deriveMasterKey(t *testing.T) {
 		}
 	}
 
-	var vector []struct {
+	var tests []struct {
 		Seed     string `json:"seed"`
 		MasterSK string `json:"master_SK"`
 	}
@@ -41,12 +41,12 @@ func Test_deriveMasterKey(t *testing.T) {
 	}
 	defer file.Close()
 
-	if err := json.NewDecoder(file).Decode(&vector); err != nil {
+	if err := json.NewDecoder(file).Decode(&tests); err != nil {
 		t.Fatal(err)
 	}
 
-	for _, v := range vector {
-		f(t, v.Seed, v.MasterSK)
+	for _, test := range tests {
+		f(t, test.Seed, test.MasterSK)
 	}
 }
 
@@ -192,4 +192,50 @@ func Test_deriveLamportPublicKeyFromParentKey(t *testing.T) {
 	}
 
 	f(t, test.Seed, test.Index, test.LamportPK)
+}
+
+func Test_deriveChildSecretKey(t *testing.T) {
+	f := func(t *testing.T, seedHex string, index uint32, wantedKey string) {
+		seed, err := hex.DecodeString(seedHex)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		masterSecretKey, err := deriveMasterSecretKey(seed)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		childSecretKey, err := deriveChildSecretKey(masterSecretKey, index)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if childSecretKey.String() != wantedKey {
+			t.Fatalf(
+				"Invalid child key:\nWant: %s\nGot:  %s\n",
+				wantedKey,
+				childSecretKey.String(),
+			)
+		}
+	}
+
+	var tests []struct {
+		Seed    string `json:"seed"`
+		Index   uint32 `json:"index"`
+		ChildSK string `json:"child_SK"`
+	}
+	file, err := os.Open("tests/derive_child_SK.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+
+	if err := json.NewDecoder(file).Decode(&tests); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, test := range tests {
+		f(t, test.Seed, test.Index, test.ChildSK)
+	}
 }
