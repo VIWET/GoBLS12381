@@ -32,6 +32,7 @@ var (
 	zero = new(big.Int).SetUint64(0)
 	one  = new(big.Int).SetUint64(1)
 
+	// ErrInvalidSeed
 	ErrInvalidSeed = errors.New("seed length must be greater than 32 byte")
 )
 
