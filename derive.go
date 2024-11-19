@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"golang.org/x/crypto/hkdf"
@@ -19,11 +20,17 @@ const (
 
 	// Length of the input seed
 	SeedLength = 32
+
+	// KeyChunkCount is the HKDF output size
+	KeyChunkCount = 255
+	// KeyChunkSize is the digest size (in octets) of the hash function (SHA256)
+	KeyChunkSize = 32
 )
 
 var (
 	r, _ = new(big.Int).SetString(R, 10)
 	zero = new(big.Int).SetUint64(0)
+	one  = new(big.Int).SetUint64(1)
 
 	ErrInvalidSeed = errors.New("seed length must be greater than 32 byte")
 )
@@ -81,4 +88,26 @@ func deriveHKDFModR(ikm []byte, keyInfo ...byte) (*big.Int, error) {
 	}
 
 	return key, nil
+}
+
+// IKM_to_lamport_SK
+//
+//	Inputs:
+//		IKM, a secret octet string
+//		salt, an octet string
+//	Outputs
+//		lamport_SK, an array of 255 32-octet strings
+func deriveLamportSecretKeyFromIKM(ikm []byte, salt []byte) ([][]byte, error) {
+	prk := hkdf.Extract(sha256.New, ikm, salt[:])
+	okmReader := hkdf.Expand(sha256.New, prk, []byte(nil))
+
+	lamportKey := make([][]byte, KeyChunkCount)
+	for i := 0; i < KeyChunkCount; i++ {
+		lamportKey[i] = make([]byte, KeyChunkSize)
+		if _, err := okmReader.Read(lamportKey[i]); err != nil {
+			return nil, fmt.Errorf("failed to read from OKMReader: %w", err)
+		}
+	}
+
+	return lamportKey, nil
 }
