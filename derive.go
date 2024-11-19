@@ -111,3 +111,25 @@ func deriveLamportSecretKeyFromIKM(ikm []byte, salt []byte) ([][]byte, error) {
 
 	return lamportKey, nil
 }
+
+// deriveLamport0 calls IKM_to_lamport_SK with parentKey as IKM
+func deriveLamport0(parentKey *big.Int, salt []byte) ([][]byte, error) {
+	ikm := parentKey.Bytes()
+	return deriveLamportSecretKeyFromIKM(ikm, salt)
+}
+
+// deriveLamport1 calls IKM_to_lamport_SK with flipped parentKey as IKM
+func deriveLamport1(parentKey *big.Int, salt []byte) ([][]byte, error) {
+	ikm := flipBits(parentKey, 256).Bytes()
+	return deriveLamportSecretKeyFromIKM(ikm, salt)
+}
+
+// flipBits is a function that returns the bitwise negation of its input
+func flipBits(key *big.Int, bitlen uint) *big.Int {
+	mask := new(big.Int).Sub(
+		new(big.Int).Lsh(one, bitlen),
+		one,
+	)
+
+	return new(big.Int).Xor(key, mask)
+}
