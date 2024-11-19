@@ -49,6 +49,22 @@ func deriveMasterSecretKey(seed []byte) (*big.Int, error) {
 	return deriveHKDFModR(seed)
 }
 
+// derive_child_SK
+//
+//	Inputs
+//		parent_SK, the secret key of the parent node, a big endian encoded integer
+//		index, the index of the desired child node, an integer 0 <= index < 2^32
+//	Outputs
+//		child_SK, the secret key of the child node, a big endian encoded integer
+func deriveChildSecretKey(parentKey *big.Int, index uint32) (*big.Int, error) {
+	lamportPublicKey, err := deriveLamportPublicKeyFromParentKey(parentKey, index)
+	if err != nil {
+		return nil, err
+	}
+
+	return deriveHKDFModR(lamportPublicKey)
+}
+
 // isValidSeed returns false if seed length is less than 32 bytes
 func isValidSeed(seed []byte) bool {
 	return len(seed) >= 32
@@ -56,11 +72,11 @@ func isValidSeed(seed []byte) bool {
 
 // hkdf_mod_r() is used to hash 32 random bytes into the subgroup of the BLS12-381 private keys.
 //
-//	Inputs:
+//	Inputs
 //		IKM, a secret octet string >= 256 bits in length
 //		key_info, an optional octet string (default="", the empty string)
 //
-//	Outputs:
+//	Outputs
 //		SK, the corresponding secret key, an integer 0 <= SK < r.
 func deriveHKDFModR(ikm []byte, keyInfo ...byte) (*big.Int, error) {
 	var (
@@ -92,7 +108,7 @@ func deriveHKDFModR(ikm []byte, keyInfo ...byte) (*big.Int, error) {
 
 // IKM_to_lamport_SK
 //
-//	Inputs:
+//	Inputs
 //		IKM, a secret octet string
 //		salt, an octet string
 //	Outputs
