@@ -36,6 +36,28 @@ var (
 	ErrInvalidSeed = errors.New("seed length must be greater than 32 byte")
 )
 
+// DeriveKey from seed and path
+func DeriveKey(seed []byte, path string) (*big.Int, error) {
+	indices, err := parsePath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := deriveMasterSecretKey(seed)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, index := range indices {
+		key, err = deriveChildSecretKey(key, index)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return key, nil
+}
+
 // derive_master_SK
 //
 //	Inputs
