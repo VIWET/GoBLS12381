@@ -31,7 +31,10 @@ func Test_deriveMasterKey(t *testing.T) {
 		}
 	}
 
-	var vector [][]string
+	var vector []struct {
+		Seed     string `json:"seed"`
+		MasterSK string `json:"master_SK"`
+	}
 	file, err := os.Open("tests/derive_master_SK.json")
 	if err != nil {
 		t.Fatal(err)
@@ -43,8 +46,7 @@ func Test_deriveMasterKey(t *testing.T) {
 	}
 
 	for _, v := range vector {
-		seed, key := v[0], v[1]
-		f(t, seed, key)
+		f(t, v.Seed, v.MasterSK)
 	}
 }
 
@@ -142,4 +144,52 @@ func Test_deriveLamport1(t *testing.T) {
 	}
 
 	f(t, test.Seed, test.Index, test.Lamport1)
+}
+
+func Test_deriveLamportPublicKeyFromParentKey(t *testing.T) {
+	f := func(t *testing.T, seedHex string, index uint32, wantedKey string) {
+		seed, err := hex.DecodeString(seedHex)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		masterSecretKey, err := deriveMasterSecretKey(seed)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		lamportPublicKey, err := deriveLamportPublicKeyFromParentKey(
+			masterSecretKey,
+			index,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if hex.EncodeToString(lamportPublicKey) != wantedKey {
+			t.Fatalf(
+				"Invalid lamport public key:\nWant: %s\nGot:  %s",
+				wantedKey,
+				hex.EncodeToString(lamportPublicKey),
+			)
+		}
+	}
+
+	var test struct {
+		Seed      string `json:"seed"`
+		Index     uint32 `json:"index"`
+		LamportPK string `json:"lamport_PK"`
+	}
+
+	file, err := os.Open("tests/derive_parent_SK_to_lamport_PK.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+
+	if err := json.NewDecoder(file).Decode(&test); err != nil {
+		t.Fatal(err)
+	}
+
+	f(t, test.Seed, test.Index, test.LamportPK)
 }
