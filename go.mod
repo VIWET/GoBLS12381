@@ -1,4 +1,4 @@
-module github.com/viwet/GoBLS12381hd
+module github.com/viwet/GoBLS12381
 
 go 1.23.0
 
