@@ -10,6 +10,46 @@ import (
 	"testing"
 )
 
+func Test_DeriveKey(t *testing.T) {
+	f := func(t *testing.T, seedHex, path, wantedKey string) {
+		seed, err := hex.DecodeString(seedHex)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		key, err := DeriveKey(seed, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if key.String() != wantedKey {
+			t.Fatalf(
+				"Invalid key:\nWant: %s\nGot:  %s\n",
+				wantedKey,
+				key.String(),
+			)
+		}
+	}
+	var tests []struct {
+		Seed string `json:"seed"`
+		Path string `json:"path"`
+		Key  string `json:"key"`
+	}
+	file, err := os.Open("tests/derive_key.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+
+	if err := json.NewDecoder(file).Decode(&tests); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, test := range tests {
+		f(t, test.Seed, test.Path, test.Key)
+	}
+}
+
 func Test_deriveMasterKey(t *testing.T) {
 	f := func(t *testing.T, seedHex, wantedKey string) {
 		seed, err := hex.DecodeString(seedHex)
