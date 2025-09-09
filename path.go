@@ -25,7 +25,7 @@ func SigningKeyPath(account uint32) string {
 	return fmt.Sprintf("m/%d/%d/%d/0/0", Purpose, CoinType, account)
 }
 
-// ErrInvalidPath
+// ErrInvalidPath ...
 var ErrInvalidPath = errors.New("invalid path")
 
 // parsePath returns the indices of child keys
