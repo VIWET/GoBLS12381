@@ -15,10 +15,10 @@ const (
 	R = "52435875175126190479447740508185965837690552500527637822603658699938581184513"
 	// L is the integer given by ceil((3 * ceil(log2(R))) / 16),
 	L = 48
-	// ASCII string comprising 20 octets
+	// Salt is an ASCII string comprising 20 octets
 	Salt = "BLS-SIG-KEYGEN-SALT-"
 
-	// Length of the input seed
+	// SeedLength of the input seed
 	SeedLength = 32
 
 	// KeyChunkCount is the HKDF output size
@@ -32,7 +32,7 @@ var (
 	zero = new(big.Int).SetUint64(0)
 	one  = new(big.Int).SetUint64(1)
 
-	// ErrInvalidSeed
+	// ErrInvalidSeed ...
 	ErrInvalidSeed = errors.New("seed length must be greater than 32 byte")
 )
 
@@ -93,6 +93,12 @@ func isValidSeed(seed []byte) bool {
 	return len(seed) >= 32
 }
 
+func sha256Hash(value []byte) []byte {
+	buffer := sha256.Sum256(value)
+
+	return buffer[:]
+}
+
 // hkdf_mod_r() is used to hash 32 random bytes into the subgroup of the BLS12-381 private keys.
 //
 //	Inputs
@@ -105,7 +111,7 @@ func deriveHKDFModR(ikm []byte, keyInfo ...byte) (*big.Int, error) {
 	var (
 		ikmPostfix     = byte(0x00)
 		keyInfoPostfix = make([]byte, 2)
-		salt           = sha256.Sum256([]byte(Salt))
+		salt           = []byte(Salt)
 	)
 
 	binary.BigEndian.PutUint16(keyInfoPostfix[:], L)
@@ -115,6 +121,7 @@ func deriveHKDFModR(ikm []byte, keyInfo ...byte) (*big.Int, error) {
 
 	key := new(big.Int).SetUint64(0)
 	for key.Cmp(zero) == 0 {
+		salt = sha256Hash(salt)
 		prk := hkdf.Extract(sha256.New, ikm, salt[:])
 		okmReader := hkdf.Expand(sha256.New, prk, keyInfo)
 
@@ -176,28 +183,28 @@ func deriveLamportPublicKeyFromParentKey(parentKey *big.Int, index uint32) ([]by
 	for i := 0; i < KeyChunkCount; i++ {
 		from := i * KeyChunkSize
 		to := (i + 1) * KeyChunkSize
-		element := sha256.Sum256(lamport0[i])
+		element := sha256Hash(lamport0[i])
 		copy(composedLamportPublicKey[from:to], element[:])
 
 		from += KeyChunkCount * KeyChunkSize
 		to += KeyChunkCount * KeyChunkSize
-		element = sha256.Sum256(lamport1[i])
+		element = sha256Hash(lamport1[i])
 		copy(composedLamportPublicKey[from:to], element[:])
 	}
 
-	compressedLamportPublicKey := sha256.Sum256(composedLamportPublicKey)
+	compressedLamportPublicKey := sha256Hash(composedLamportPublicKey)
 	return compressedLamportPublicKey[:], nil
 }
 
 // deriveLamport0 calls IKM_to_lamport_SK with parentKey as IKM
 func deriveLamport0(parentKey *big.Int, salt []byte) ([][]byte, error) {
-	ikm := parentKey.Bytes()
+	ikm := getIKMFromBig(parentKey)
 	return deriveLamportSecretKeyFromIKM(ikm, salt)
 }
 
 // deriveLamport1 calls IKM_to_lamport_SK with flipped parentKey as IKM
 func deriveLamport1(parentKey *big.Int, salt []byte) ([][]byte, error) {
-	ikm := flipBits(parentKey, 256).Bytes()
+	ikm := getIKMFromBig(flipBits(parentKey, 256))
 	return deriveLamportSecretKeyFromIKM(ikm, salt)
 }
 
@@ -209,4 +216,11 @@ func flipBits(key *big.Int, bitlen uint) *big.Int {
 	)
 
 	return new(big.Int).Xor(key, mask)
+}
+
+func getIKMFromBig(value *big.Int) []byte {
+	var ikm [32]byte
+	value.FillBytes(ikm[:])
+
+	return ikm[:]
 }
